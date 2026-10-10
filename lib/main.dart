@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://uyznaqoohrvbbqpxiscx.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5em5hcW9vaHJ2YmJxcHhpc2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NTM1OTAsImV4cCI6MjEwNzIyOTU5MH0.Awo6bckTXHAFIVoRqZYF-cJR0tqd9xrascAznXvStT8',
+  );
   runApp(const ToudiApp());
 }
 
@@ -31,9 +37,24 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
 
-  void _sendOtp() {
+  void _sendOtp() async {
     if (_phoneController.text.length == 10) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+      try {
+        await Supabase.instance.client.auth.signInWithOtp(
+          phone: '+91${_phoneController.text}',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OTP bhej diya gaya! (Check SMS)')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('10 digit ka mobile number daalo!')),
@@ -52,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.local_shipping, size: 100, color: Colors.blue),
               const SizedBox(height: 20),
-              const Text('Toudi Logistic', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+              const Text('Toudi Logistic',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               const Text('On-Demand Goods Transport'),
               const SizedBox(height: 40),
@@ -62,7 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 maxLength: 10,
                 decoration: InputDecoration(
                   labelText: 'Mobile Number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.phone),
                 ),
               ),
@@ -70,9 +93,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ElevatedButton(
                 onPressed: _sendOtp,
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 ),
-                child: const Text('Send OTP', style: TextStyle(fontSize: 18)),
+                child: const Text('Send OTP',
+                    style: TextStyle(fontSize: 18)),
               ),
             ],
           ),
@@ -89,10 +114,12 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Book Delivery'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text('Book Delivery'),
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white),
       body: Stack(
         children: [
-          // Map Placeholder
           Container(
             color: Colors.grey[200],
             child: const Center(
@@ -101,12 +128,12 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.map, size: 100, color: Colors.grey),
                   SizedBox(height: 10),
-                  Text('Map Yahan Aayega', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  Text('Map Yahan Aayega',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
                 ],
               ),
             ),
           ),
-          // Bottom Sheet
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -119,15 +146,21 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Kahan se uthana hai?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Kahan se uthana hai?',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 15),
                   ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PickupDropScreen()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const PickupDropScreen()));
                     },
                     icon: const Icon(Icons.add_location),
                     label: const Text('Naya Delivery Book Karo'),
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                    style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50)),
                   ),
                 ],
               ),
@@ -146,7 +179,10 @@ class PickupDropScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pickup & Drop'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text('Pickup & Drop'),
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -154,24 +190,33 @@ class PickupDropScreen extends StatelessWidget {
             TextField(
               decoration: InputDecoration(
                 labelText: 'Pickup Address',
-                prefixIcon: const Icon(Icons.my_location, color: Colors.green),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon:
+                    const Icon(Icons.my_location, color: Colors.green),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 15),
             TextField(
               decoration: InputDecoration(
                 labelText: 'Drop Address',
-                prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon:
+                    const Icon(Icons.location_on, color: Colors.red),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const Spacer(),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const VehicleSelectionScreen()));
               },
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50)),
               child: const Text('Aage Badho'),
             ),
           ],
@@ -185,7 +230,8 @@ class PickupDropScreen extends StatelessWidget {
 class VehicleSelectionScreen extends StatefulWidget {
   const VehicleSelectionScreen({super.key});
   @override
-  State<VehicleSelectionScreen> createState() => _VehicleSelectionScreenState();
+  State<VehicleSelectionScreen> createState() =>
+      _VehicleSelectionScreenState();
 }
 
 class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
@@ -200,7 +246,10 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vehicle Select Karo'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text('Vehicle Select Karo'),
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white),
       body: Column(
         children: [
           Expanded(
@@ -208,13 +257,21 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
               itemCount: vehicles.length,
               itemBuilder: (context, index) {
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                  color: selectedIndex == index ? Colors.blue[50] : Colors.white,
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                  color: selectedIndex == index
+                      ? Colors.blue[50]
+                      : Colors.white,
                   child: ListTile(
-                    leading: Text(vehicles[index]['icon']!, style: const TextStyle(fontSize: 30)),
-                    title: Text(vehicles[index]['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    leading: Text(vehicles[index]['icon']!,
+                        style: const TextStyle(fontSize: 30)),
+                    title: Text(vehicles[index]['name']!,
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Base Fare: ${vehicles[index]['price']}'),
-                    trailing: selectedIndex == index ? const Icon(Icons.check_circle, color: Colors.blue) : null,
+                    trailing: selectedIndex == index
+                        ? const Icon(Icons.check_circle, color: Colors.blue)
+                        : null,
                     onTap: () => setState(() => selectedIndex = index),
                   ),
                 );
@@ -225,9 +282,14 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
             padding: const EdgeInsets.all(20),
             child: ElevatedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const FindingDriverScreen()));
               },
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50)),
               child: const Text('Confirm Booking'),
             ),
           ),
@@ -248,10 +310,12 @@ class _FindingDriverScreenState extends State<FindingDriverScreen> {
   @override
   void initState() {
     super.initState();
-    // 3 second baad automatic Driver Assigned screen par le jayega
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DriverAssignedScreen()));
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const DriverAssignedScreen()));
       }
     });
   }
@@ -280,28 +344,39 @@ class DriverAssignedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Driver Mil Gaya!'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text('Driver Mil Gaya!'),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            const CircleAvatar(
+                radius: 50, child: Icon(Icons.person, size: 50)),
             const SizedBox(height: 20),
-            const Text('Ramesh Kumar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text('Ramesh Kumar',
+                style:
+                    TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const Text('Tata Ace - UP 32 AB 1234'),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.call), label: const Text('Call')),
+                ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.call),
+                    label: const Text('Call')),
                 const SizedBox(width: 20),
-                ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.message), label: const Text('Message')),
+                ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.message),
+                    label: const Text('Message')),
               ],
             ),
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                // Wapas Home par le jao
                 Navigator.popUntil(context, (route) => route.isFirst);
               },
               child: const Text('Naya Order Karo'),

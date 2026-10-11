@@ -1,14 +1,21 @@
 name: toudi_logistic
 description: On-demand goods transportation platform
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '^3.5.0'
+sdk: '>=3.5.0 <4.0.0'
 
 dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.6
-supabase_flutter: ^2.8.0
 flutter:
-  uses-material-design: true
+sdk: flutter
+cupertino_icons: ^1.0.6
+supabase_flutter: ^2.8.0
+
+dev_dependencies:
+flutter_test:
+sdk: flutter
+flutter_lints: ^4.0.0
+
+flutter:
+uses-material-design: true

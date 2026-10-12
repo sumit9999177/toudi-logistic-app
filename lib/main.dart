@@ -268,7 +268,9 @@ class AccountTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          _buildMenuItem(context, Icons.location_on, 'Saved Addresses', () {}),
+          _buildMenuItem(context, Icons.location_on, 'Saved Addresses', () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedAddressesScreen()));
+          }),
           _buildMenuItem(context, Icons.business, 'Business Details (GST)', () {}),
           _buildMenuItem(context, Icons.card_giftcard, 'Refer & Earn ₹200', () {}),
           _buildMenuItem(context, Icons.help, 'Help & Support', () {}),
@@ -288,6 +290,116 @@ class AccountTab extends StatelessWidget {
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
       onTap: onTap,
+    );
+  }
+}
+
+// ================= C-03: SAVED ADDRESSES SCREEN =================
+class SavedAddressesScreen extends StatefulWidget {
+  const SavedAddressesScreen({super.key});
+  @override
+  State<SavedAddressesScreen> createState() => _SavedAddressesScreenState();
+}
+
+class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
+  final List<Map<String, String>> _addresses = [
+    {'label': 'Home', 'address': 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi - 110090', 'icon': 'home'},
+  ];
+
+  void _addAddress() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String newLabel = 'Other';
+        String newAddress = '';
+        return AlertDialog(
+          title: const Text('Add New Address'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: newLabel,
+                items: ['Home', 'Shop', 'Warehouse', 'Other'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                onChanged: (val) => newLabel = val!,
+                decoration: const InputDecoration(labelText: 'Label'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(labelText: 'Full Address'),
+                onChanged: (val) => newAddress = val,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                if (newAddress.isNotEmpty) {
+                  setState(() {
+                    _addresses.add({'label': newLabel, 'address': newAddress, 'icon': 'location'});
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Saved Addresses'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(onPressed: _addAddress, icon: const Icon(Icons.add)),
+        ],
+      ),
+      body: _addresses.isEmpty
+          ? const Center(child: Text('Koi address save nahi hai. Add karo!'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _addresses.length,
+              itemBuilder: (context, index) {
+                final addr = _addresses[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue[50],
+                      child: Icon(
+                        addr['label'] == 'Home' ? Icons.home : (addr['label'] == 'Shop' ? Icons.store : Icons.location_on),
+                        color: Colors.blue,
+                      ),
+                    ),
+                    title: Text(addr['label']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(addr['address']!),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                          onPressed: () {},
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              _addresses.removeAt(index);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -418,99 +530,4 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
 }
 
 // ================= C-07: VEHICLE SELECTION SCREEN =================
-class VehicleSelectionScreen extends StatefulWidget {
-  const VehicleSelectionScreen({super.key});
-  @override
-  State<VehicleSelectionScreen> createState() => _VehicleSelectionScreenState();
-}
-
-class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
-  int selectedIndex = 0;
-  final List<Map<String, String>> vehicles = [
-    {'name': '2 Wheeler', 'price': '₹372', 'icon': '🏍️', 'weight': '20 kg', 'eta': '10 mins'},
-    {'name': 'Scooter', 'price': '₹410', 'icon': '🛵', 'weight': '20 kg', 'eta': '10 mins'},
-    {'name': '3 Wheeler', 'price': '₹1501', 'icon': '🛺', 'weight': '500 kg', 'eta': '6 mins'},
-    {'name': 'Tata Ace', 'price': '₹1580', 'icon': '🚚', 'weight': '750 kg', 'eta': '7 mins'},
-    {'name': 'Pickup 8ft', 'price': '₹1894', 'icon': '🛻', 'weight': '1250 kg', 'eta': '13 mins'},
-    {'name': '10ft Truck', 'price': '₹3482', 'icon': '🚛', 'weight': '1700 kg', 'eta': '5 mins'},
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Select Vehicle'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: vehicles.length,
-              itemBuilder: (context, index) => Card(
-                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                color: selectedIndex == index ? Colors.blue[50] : Colors.white,
-                child: ListTile(
-                  leading: Text(vehicles[index]['icon']!, style: const TextStyle(fontSize: 30)),
-                  title: Text(vehicles[index]['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${vehicles[index]['weight']} • ${vehicles[index]['eta']}'),
-                  trailing: Text(vehicles[index]['price']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  onTap: () => setState(() => selectedIndex = index),
-                  selected: selectedIndex == index,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: ElevatedButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen())),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-              child: Text('Proceed with ${vehicles[selectedIndex]['name']}'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ================= C-12: FINDING DRIVER SCREEN =================
-class FindingDriverScreen extends StatefulWidget {
-  const FindingDriverScreen({super.key});
-  @override
-  State<FindingDriverScreen> createState() => _FindingDriverScreenState();
-}
-
-class _FindingDriverScreenState extends State<FindingDriverScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DriverAssignedScreen()));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 20),
-        Text('Driver Dhoondh Rahe Hain...', style: TextStyle(fontSize: 18)),
-      ])),
-    );
-  }
-}
-
-// ================= C-13: DRIVER ASSIGNED SCREEN =================
-class DriverAssignedScreen extends StatelessWidget {
-  const DriverAssignedScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Driver Mil Gaya!'), backgroundColor: Colors.green, foregroundColor: Colors.white),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
-            const SizedBox(height: 20),
-            const Text('Ramesh Kumar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bol
+class V

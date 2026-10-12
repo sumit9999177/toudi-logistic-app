@@ -20,11 +20,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.27.1'
           channel: 'stable'
 
       - name: Create Flutter project structure
         run: flutter create --project-name toudi_logistic . --platforms android
+
+      # 🔥 YEH NAYA STEP HAI - Kotlin version update karne ke liye
+      - name: Update Kotlin version
+        run: |
+          sed -i "s/ext.kotlin_version = '1.7.1'/ext.kotlin_version = '1.9.24'/" android/build.gradle
+          sed -i "s/id 'org.jetbrains.kotlin.android' version '1.7.1'/id 'org.jetbrains.kotlin.android' version '1.9.24'/" android/settings.gradle
 
       - name: Get dependencies
         run: flutter pub get

@@ -317,7 +317,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Pickup Address
             TextField(
               controller: _pickupController,
               decoration: InputDecoration(
@@ -327,7 +326,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Drop Address
             TextField(
               controller: _dropController,
               decoration: InputDecoration(
@@ -339,7 +337,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
             const SizedBox(height: 30),
             const Text('Receiver Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
-            // Receiver Name
             TextField(
               controller: _receiverNameController,
               decoration: InputDecoration(
@@ -349,7 +346,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               ),
             ),
             const SizedBox(height: 15),
-            // Receiver Phone
             TextField(
               controller: _receiverPhoneController,
               keyboardType: TextInputType.phone,
@@ -360,7 +356,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               ),
             ),
             const SizedBox(height: 15),
-            // Note / Landmark
             TextField(
               controller: _noteController,
               decoration: InputDecoration(
@@ -384,7 +379,6 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                // C-07 Vehicle Selection Screen par jaao
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
               },
               style: ElevatedButton.styleFrom(
@@ -517,4 +511,6 @@ class DriverAssignedScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-           
+            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            const SizedBox(height: 20),
+            const Text('Ramesh Kumar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bol

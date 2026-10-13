@@ -530,4 +530,117 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
 }
 
 // ================= C-07: VEHICLE SELECTION SCREEN =================
-class V
+class VehicleSelectionScreen extends StatefulWidget {
+  const VehicleSelectionScreen({super.key});
+  @override
+  State<VehicleSelectionScreen> createState() => _VehicleSelectionScreenState();
+}
+
+class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
+  int selectedIndex = 0;
+  final List<Map<String, String>> vehicles = [
+    {'name': '2 Wheeler', 'price': '₹372', 'icon': '🏍️', 'weight': '20 kg', 'eta': '10 mins'},
+    {'name': 'Scooter', 'price': '₹410', 'icon': '🛵', 'weight': '20 kg', 'eta': '10 mins'},
+    {'name': '3 Wheeler', 'price': '₹1501', 'icon': '🛺', 'weight': '500 kg', 'eta': '6 mins'},
+    {'name': 'Tata Ace', 'price': '₹1580', 'icon': '🚚', 'weight': '750 kg', 'eta': '7 mins'},
+    {'name': 'Pickup 8ft', 'price': '₹1894', 'icon': '🛻', 'weight': '1250 kg', 'eta': '13 mins'},
+    {'name': '10ft Truck', 'price': '₹3482', 'icon': '🚛', 'weight': '1700 kg', 'eta': '5 mins'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Vehicle'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: vehicles.length,
+              itemBuilder: (context, index) => Card(
+                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                color: selectedIndex == index ? Colors.blue[50] : Colors.white,
+                child: ListTile(
+                  leading: Text(vehicles[index]['icon']!, style: const TextStyle(fontSize: 30)),
+                  title: Text(vehicles[index]['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${vehicles[index]['weight']} • ${vehicles[index]['eta']}'),
+                  trailing: Text(vehicles[index]['price']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  onTap: () => setState(() => selectedIndex = index),
+                  selected: selectedIndex == index,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen())),
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              child: Text('Proceed with ${vehicles[selectedIndex]['name']}'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================= C-12: FINDING DRIVER SCREEN =================
+class FindingDriverScreen extends StatefulWidget {
+  const FindingDriverScreen({super.key});
+  @override
+  State<FindingDriverScreen> createState() => _FindingDriverScreenState();
+}
+
+class _FindingDriverScreenState extends State<FindingDriverScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DriverAssignedScreen()));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircularProgressIndicator(),
+        SizedBox(height: 20),
+        Text('Driver Dhoondh Rahe Hain...', style: TextStyle(fontSize: 18)),
+      ])),
+    );
+  }
+}
+
+// ================= C-13: DRIVER ASSIGNED SCREEN =================
+class DriverAssignedScreen extends StatelessWidget {
+  const DriverAssignedScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Driver Mil Gaya!'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            const SizedBox(height: 20),
+            const Text('Ramesh Kumar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text('Tata Ace - UP 32 AB 1234'),
+            const SizedBox(height: 20),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.call), label: const Text('Call')),
+              const SizedBox(width: 20),
+              ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.message), label: const Text('Message')),
+            ]),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+              child: const Text('Naya Order Karo'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

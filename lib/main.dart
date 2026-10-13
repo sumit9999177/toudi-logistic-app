@@ -489,9 +489,33 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               ],
             ),
             const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
+            onPressed: () {
+  if (_pickupController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pickup Address daalo!'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  if (_dropController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Drop Address daalo!'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  if (_receiverNameController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Receiver ka naam daalo!'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  if (_receiverPhoneController.text.trim().length != 10) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Receiver ka 10 digit mobile number daalo!'), backgroundColor: Colors.red),
+    );
+    return;
+  }
+  Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
+},
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),

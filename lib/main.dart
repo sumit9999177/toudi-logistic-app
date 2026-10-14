@@ -303,7 +303,7 @@ class SavedAddressesScreen extends StatefulWidget {
 
 class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   final List<Map<String, String>> _addresses = [
-    {'label': 'Home', 'address': 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi - 110090', 'icon': 'home'},
+    {'label': 'Home', 'address': 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi - 110090'},
   ];
 
   void _addAddress() {
@@ -336,7 +336,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
               onPressed: () {
                 if (newAddress.isNotEmpty) {
                   setState(() {
-                    _addresses.add({'label': newLabel, 'address': newAddress, 'icon': 'location'});
+                    _addresses.add({'label': newLabel, 'address': newAddress});
                   });
                   Navigator.pop(context);
                 }
@@ -417,7 +417,7 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
   final TextEditingController _receiverNameController = TextEditingController();
   final TextEditingController _receiverPhoneController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  
+
   String _saveAs = '';
 
   @override
@@ -461,10 +461,12 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
             TextField(
               controller: _receiverPhoneController,
               keyboardType: TextInputType.phone,
+              maxLength: 10,
               decoration: InputDecoration(
                 labelText: "Receiver's Mobile number",
                 prefixIcon: const Icon(Icons.phone),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                counterText: '',
               ),
             ),
             const SizedBox(height: 15),
@@ -489,33 +491,36 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               ],
             ),
             const SizedBox(height: 40),
-            onPressed: () {
-  if (_pickupController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pickup Address daalo!'), backgroundColor: Colors.red),
-    );
-    return;
-  }
-  if (_dropController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Drop Address daalo!'), backgroundColor: Colors.red),
-    );
-    return;
-  }
-  if (_receiverNameController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Receiver ka naam daalo!'), backgroundColor: Colors.red),
-    );
-    return;
-  }
-  if (_receiverPhoneController.text.trim().length != 10) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Receiver ka 10 digit mobile number daalo!'), backgroundColor: Colors.red),
-    );
-    return;
-  }
-  Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
-},
+            ElevatedButton(
+              onPressed: () {
+                if (_pickupController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Pickup Address daalo!'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (_dropController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Drop Address daalo!'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (_receiverNameController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Receiver ka naam daalo!'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (_receiverPhoneController.text.trim().length != 10) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Receiver ka 10 digit mobile number daalo!'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => BookingReviewScreen(
+                  vehicleName: vehicles[selectedIndex]['name']!,
+                  vehiclePrice: vehicles[selectedIndex]['price']!,
+                )));
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
@@ -597,11 +602,107 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
           Padding(
             padding: const EdgeInsets.all(20),
             child: ElevatedButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen())),
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookingReviewScreen(
+                      vehicleName: vehicles[selectedIndex]['name']!,
+                      vehiclePrice: vehicles[selectedIndex]['price']!,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
               child: Text('Proceed with ${vehicles[selectedIndex]['name']}'),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================= C-09 & C-10: BOOKING REVIEW SCREEN =================
+class BookingReviewScreen extends StatelessWidget {
+  final String vehicleName;
+  final String vehiclePrice;
+  const BookingReviewScreen({super.key, required this.vehicleName, required this.vehiclePrice});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Booking Review'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSummaryRow(Icons.my_location, Colors.green, 'Pickup Address', 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi'),
+            const SizedBox(height: 15),
+            _buildSummaryRow(Icons.location_on, Colors.red, 'Drop Address', 'E58, Block A, Aruna Nagar, Timarpur, Delhi'),
+            const Divider(height: 30),
+            _buildSummaryRow(Icons.person, Colors.blue, 'Receiver', 'Firoz Ali (8273363366)'),
+            const Divider(height: 30),
+            _buildSummaryRow(Icons.local_shipping, Colors.orange, 'Vehicle', vehicleName),
+            const Divider(height: 30),
+            const Text('Fare Breakdown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 15),
+            _buildFareRow('Base Fare', '₹50'),
+            _buildFareRow('Distance Charge (5 km)', '₹100'),
+            _buildFareRow('Time Charge', '₹20'),
+            _buildFareRow('GST (5%)', '₹8'),
+            const Divider(height: 20),
+            _buildFareRow('Total', vehiclePrice, isBold: true),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 55),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Confirm Booking', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(IconData icon, Color color, String title, String subtitle) {
+    return Row(
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(subtitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFareRow(String label, String amount, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(amount, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );

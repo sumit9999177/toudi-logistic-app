@@ -517,10 +517,7 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
                   );
                   return;
                 }
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => BookingReviewScreen(
-                  vehicleName: vehicles[selectedIndex]['name']!,
-                  vehiclePrice: vehicles[selectedIndex]['price']!,
-                )));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),

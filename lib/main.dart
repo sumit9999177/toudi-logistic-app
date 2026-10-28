@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const ToudiApp());
@@ -28,9 +30,39 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
 
-  void _sendOtp() {
+  void _sendOtp() async {
     if (_phoneController.text.length == 10) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+      var rng = Random();
+      String otp = (rng.nextInt(900000) + 100000).toString();
+
+      // 👇 YAHAN APNI FAST2SMS API KEY DAALO 👇
+      String apiKey = 'gPVmdzD1scpFImkupVnyjL6Rd2BPP6b6b2jQtxxrxtVPr1UhJXA2ICtiSFixxojYDfG4NjeJfcUiTZp2'; 
+      
+      String phone = _phoneController.text;
+      String url = 'https://www.fast2sms.com/dev/bulkV2?authorization=$apiKey&route=otp&variables_values=$otp&flash=0&numbers=$phone';
+
+      try {
+        var response = await http.get(Uri.parse(url), headers: {
+          'cache-control': 'no-cache',
+        });
+
+        if (response.statusCode == 200) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtpScreen(phone: phone, generatedOtp: otp),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OTP bhejne mein error aayi. API Key check karo.')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network Error: $e')),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('10 digit ka mobile number daalo!')),
@@ -71,6 +103,68 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================= OTP VERIFICATION SCREEN =================
+class OtpScreen extends StatefulWidget {
+  final String phone;
+  final String generatedOtp;
+  const OtpScreen({super.key, required this.phone, required this.generatedOtp});
+
+  @override
+  State<OtpScreen> createState() => _OtpScreenState();
+}
+
+class _OtpScreenState extends State<OtpScreen> {
+  final TextEditingController _otpController = TextEditingController();
+
+  void _verifyOtp() {
+    if (_otpController.text == widget.generatedOtp) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Galat OTP! Dobara try karo.'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify OTP'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.message, size: 80, color: Colors.blue),
+            const SizedBox(height: 20),
+            Text('OTP bheja gaya hai ${widget.phone} par', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'Enter 6-digit OTP',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _verifyOtp,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text('Verify & Login', style: TextStyle(color: Colors.white, fontSize: 18)),
+            ),
+          ],
         ),
       ),
     );
@@ -658,7 +752,7 @@ class BookingReviewScreen extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen()));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const PaymentScreen()));
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
@@ -701,6 +795,96 @@ class BookingReviewScreen extends StatelessWidget {
           Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
           Text(amount, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
+      ),
+    );
+  }
+}
+
+// ================= C-11: PAYMENT SCREEN =================
+class PaymentScreen extends StatefulWidget {
+  const PaymentScreen({super.key});
+  @override
+  State<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends State<PaymentScreen> {
+  String _selectedPayment = 'Cash';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Payment'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Select Payment Method', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            _buildPaymentOption('Cash', 'Pay with cash on delivery', Icons.money),
+            const SizedBox(height: 15),
+            _buildPaymentOption('UPI / Online', 'Pay via UPI, Card, Netbanking', Icons.credit_card),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('₹372', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 55),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text('Pay with $_selectedPayment', style: const TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(String title, String subtitle, IconData icon) {
+    bool isSelected = _selectedPayment == title;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPayment = title),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue[50] : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? Colors.blue : Colors.grey[300]!, width: isSelected ? 2 : 1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? Colors.blue : Colors.grey[700], size: 30),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.blue),
+          ],
+        ),
       ),
     );
   }

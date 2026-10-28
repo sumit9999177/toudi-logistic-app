@@ -26,11 +26,10 @@ jobs:
       - name: Create Flutter project structure
         run: flutter create --project-name toudi_logistic . --platforms android
 
-      # 🔥 YEH NAYA STEP HAI - Kotlin version update karne ke liye
-      - name: Update Kotlin version
+      # 🔥 YEH NAYA STEP HAI - Internet Permission add karne ke liye
+      - name: Add Internet Permission
         run: |
-          sed -i "s/ext.kotlin_version = '1.7.1'/ext.kotlin_version = '1.9.24'/" android/build.gradle
-          sed -i "s/id 'org.jetbrains.kotlin.android' version '1.7.1'/id 'org.jetbrains.kotlin.android' version '1.9.24'/" android/settings.gradle
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
       - name: Get dependencies
         run: flutter pub get

@@ -3,8 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ⬇️⬇️⬇️ YAHAN APNA SUPABASE URL AUR KEY PASTE KARO (quotes ke andar) ⬇️⬇️⬇️
 const String supabaseUrl = 'https://uyznaqoohrvbbqpxiscx.supabase.co';
-const String supabasePublishableKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5em5hcW9vaHJ2YmJxcHhpc2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NTM1OTAsImV4cCI6MjEwNzIyOTU5MH0.Awo6bckTXHAFIVoRqZYF-cJR0tqd9xrascAznXvStT8
-  ';
+const String supabasePublishableKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5em5hcW9vaHJ2YmJxcHhpc2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NTM1OTAsImV4cCI6MjEwNzIyOTU5MH0.Awo6bckTXHAFIVoRqZYF-cJR0tqd9xrascAznXvStT8  ';
 // ⬆️⬆️⬆️ SIRF IN 2 LINES KO BADALNA HAI — BAaki KUCH MAT CHHEDNA ⬆️⬆️⬆️
 
 Future<void> main() async {

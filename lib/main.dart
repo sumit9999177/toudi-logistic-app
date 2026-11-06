@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+// ⬇️⬇️⬇️ YAHAN APNA SUPABASE URL AUR KEY PASTE KARO (quotes ke andar) ⬇️⬇️⬇️
+const String supabaseUrl = 'https://uyznaqoohrvbbqpxiscx.supabase.co';
+const String supabasePublishableKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5em5hcW9vaHJ2YmJxcHhpc2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NTM1OTAsImV4cCI6MjEwNzIyOTU5MH0.Awo6bckTXHAFIVoRqZYF-cJR0tqd9xrascAznXvStT8
+  ';
+// ⬆️⬆️⬆️ SIRF IN 2 LINES KO BADALNA HAI — BAaki KUCH MAT CHHEDNA ⬆️⬆️⬆️
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabasePublishableKey,
+  );
+
   runApp(const ToudiApp());
 }
 
@@ -23,50 +35,59 @@ class ToudiApp extends StatelessWidget {
 // ================= C-01: LOGIN SCREEN =================
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  bool _isSendingOtp = false;
 
-  void _sendOtp() async {
-    if (_phoneController.text.length == 10) {
-      var rng = Random();
-      String otp = (rng.nextInt(900000) + 100000).toString();
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
 
-      // 👇 YAHAN APNI FAST2SMS API KEY DAALO 👇
-      String apiKey = 'gPVmdzD1scpFImkupVnyjL6Rd2BPP6b6b2jQtxxrxtVPr1UhJXA2ICtiSFixxojYDfG4NjeJfcUiTZp2'; 
-      
-      String phone = _phoneController.text;
-      String url = 'https://www.fast2sms.com/dev/bulkV2?authorization=$apiKey&route=otp&variables_values=$otp&flash=0&numbers=$phone';
+  Future<void> _sendOtp() async {
+    final String phone = _phoneController.text.trim();
 
-      try {
-        var response = await http.get(Uri.parse(url), headers: {
-          'cache-control': 'no-cache',
-        });
-
-        if (response.statusCode == 200) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OtpScreen(phone: phone, generatedOtp: otp),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP bhejne mein error aayi. API Key check karo.')),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network Error: $e')),
-        );
-      }
-    } else {
+    if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('10 digit ka mobile number daalo!')),
       );
+      return;
+    }
+
+    setState(() => _isSendingOtp = true);
+
+    try {
+      // Supabase India phone authentication ke liye +91 format use hota hai.
+      await Supabase.instance.client.auth.signInWithOtp(
+        phone: '+91$phone',
+      );
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpScreen(phone: '+91$phone'),
+        ),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('OTP nahi bheja ja saka: ${e.message}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
     }
   }
 
@@ -81,7 +102,10 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.local_shipping, size: 100, color: Colors.blue),
               const SizedBox(height: 20),
-              const Text('Toudi Logistic', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+              const Text(
+                'Toudi Logistic',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 10),
               const Text('On-Demand Goods Transport'),
               const SizedBox(height: 40),
@@ -91,15 +115,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 maxLength: 10,
                 decoration: InputDecoration(
                   labelText: 'Mobile Number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   prefixIcon: const Icon(Icons.phone),
+                  prefixText: '+91 ',
                 ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _sendOtp,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15)),
-                child: const Text('Send OTP', style: TextStyle(fontSize: 18)),
+                onPressed: _isSendingOtp ? null : _sendOtp,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 50,
+                    vertical: 15,
+                  ),
+                ),
+                child: _isSendingOtp
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Send OTP', style: TextStyle(fontSize: 18)),
               ),
             ],
           ),
@@ -112,8 +150,8 @@ class _LoginScreenState extends State<LoginScreen> {
 // ================= OTP VERIFICATION SCREEN =================
 class OtpScreen extends StatefulWidget {
   final String phone;
-  final String generatedOtp;
-  const OtpScreen({super.key, required this.phone, required this.generatedOtp});
+
+  const OtpScreen({super.key, required this.phone});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -121,21 +159,65 @@ class OtpScreen extends StatefulWidget {
 
 class _OtpScreenState extends State<OtpScreen> {
   final TextEditingController _otpController = TextEditingController();
+  bool _isVerifying = false;
 
-  void _verifyOtp() {
-    if (_otpController.text == widget.generatedOtp) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
-    } else {
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verifyOtp() async {
+    final String otp = _otpController.text.trim();
+
+    if (!RegExp(r'^[0-9]{6}$').hasMatch(otp)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Galat OTP! Dobara try karo.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('6 digit OTP daalo!')),
       );
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        phone: widget.phone,
+        token: otp,
+        type: OtpType.sms,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('OTP verify nahi hua: ${e.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify OTP'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Verify OTP'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -143,7 +225,10 @@ class _OtpScreenState extends State<OtpScreen> {
           children: [
             const Icon(Icons.message, size: 80, color: Colors.blue),
             const SizedBox(height: 20),
-            Text('OTP bheja gaya hai ${widget.phone} par', style: const TextStyle(fontSize: 16)),
+            Text(
+              'OTP bheja gaya hai ${widget.phone} par',
+              style: const TextStyle(fontSize: 16),
+            ),
             const SizedBox(height: 30),
             TextField(
               controller: _otpController,
@@ -151,18 +236,32 @@ class _OtpScreenState extends State<OtpScreen> {
               maxLength: 6,
               decoration: InputDecoration(
                 labelText: 'Enter 6-digit OTP',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 counterText: '',
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _verifyOtp,
+              onPressed: _isVerifying ? null : _verifyOtp,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 backgroundColor: Colors.blue,
               ),
-              child: const Text('Verify & Login', style: TextStyle(color: Colors.white, fontSize: 18)),
+              child: _isVerifying
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Verify & Login',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
             ),
           ],
         ),
@@ -478,6 +577,10 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                          onPressed: () {},
+                        ),
+                        IconButton(
+                                                   icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
                           onPressed: () {},
                         ),
                         IconButton(

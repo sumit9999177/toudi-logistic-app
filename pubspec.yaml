@@ -1,4 +1,3 @@
-
 name: toudi_logistic
 description: On-demand goods transportation platform
 version: 1.0.0+1
@@ -11,6 +10,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   http: ^1.2.0
+  supabase_flutter: 2.15.4
 
 flutter:
   uses-material-design: true

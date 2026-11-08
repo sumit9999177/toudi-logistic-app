@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ⬇️⬇️⬇️ YAHAN APNA SUPABASE URL AUR KEY PASTE KARO (quotes ke andar) ⬇️⬇️⬇️
-const String supabaseUrl = 'YOUR_SUPABASE_URL';
-const String supabasePublishableKey = 'YOUR_PUBLISHABLE_KEY';  ';
-// ⬆️⬆️⬆️ SIRF IN 2 LINES KO BADALNA HAI — BAaki KUCH MAT CHHEDNA ⬆️⬆️⬆️
+const String supabaseUrl = 'https://uyznaqoohrvbbqpxiscx.supabase.co';
+const String supabasePublishableKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5em5hcW9vaHJ2YmJxcHhpc2N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2NTM1OTAsImV4cCI6MjEwNzIyOTU5MH0.Awo6bckTXHAFIVoRqZYF-cJR0tqd9xrascAznXvStT8
+  ';
+// ⬆️⬆️⬆️ SIRF IN 2 LINES KO BADALNA HAI — Baaki KUCH MAT CHHEDNA ⬆️⬆️⬆️
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +20,34 @@ Future<void> main() async {
   runApp(const ToudiApp());
 }
 
-class ToudiApp extends StatelessWidget {
+// ================= ROOT APP (with auth listener) =================
+class ToudiApp extends StatefulWidget {
   const ToudiApp({super.key});
+
+  @override
+  State<ToudiApp> createState() => _ToudiAppState();
+}
+
+class _ToudiAppState extends State<ToudiApp> {
+  Session? _session;
+  StreamSubscription<AuthState>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = Supabase.instance.client.auth.currentSession;
+    // Session expire / logout hone par automatically LoginScreen par bhej dega
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (!mounted) return;
+      setState(() => _session = data.session);
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +55,7 @@ class ToudiApp extends StatelessWidget {
       title: 'Toudi Logistic',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const LoginScreen(),
+      home: _session == null ? const LoginScreen() : const MainScreen(),
     );
   }
 }
@@ -62,7 +91,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSendingOtp = true);
 
     try {
-      // Supabase India phone authentication ke liye +91 format use hota hai.
       await Supabase.instance.client.auth.signInWithOtp(
         phone: '+91$phone',
       );
@@ -159,6 +187,7 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   final TextEditingController _otpController = TextEditingController();
   bool _isVerifying = false;
+  bool _isResending = false;
 
   @override
   void dispose() {
@@ -209,6 +238,24 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
+  Future<void> _resendOtp() async {
+    setState(() => _isResending = true);
+    try {
+      await Supabase.instance.client.auth.signInWithOtp(phone: widget.phone);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OTP dobara bhej diya gaya!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Resend failed: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,6 +274,7 @@ class _OtpScreenState extends State<OtpScreen> {
             Text(
               'OTP bheja gaya hai ${widget.phone} par',
               style: const TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 30),
             TextField(
@@ -262,6 +310,16 @@ class _OtpScreenState extends State<OtpScreen> {
                       style: TextStyle(color: Colors.white, fontSize: 18),
                     ),
             ),
+            TextButton(
+              onPressed: _isResending ? null : _resendOtp,
+              child: _isResending
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Resend OTP'),
+            ),
           ],
         ),
       ),
@@ -296,7 +354,8 @@ class _MainScreenState extends State<MainScreen> {
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Orders'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long), label: 'Orders'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Account'),
         ],
       ),
@@ -311,14 +370,20 @@ class HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Toudi Logistic'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Toudi Logistic'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Pick up from', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            const Text('Pick up from',
+                style: TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 5),
+            // TODO(stage-2): Real GPS location yahan lagani hai
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
@@ -329,25 +394,34 @@ class HomeTab extends StatelessWidget {
                 children: [
                   Icon(Icons.my_location, color: Colors.green),
                   SizedBox(width: 10),
-                  Expanded(child: Text('Current Location', style: TextStyle(fontSize: 16))),
+                  Expanded(
+                      child: Text('Current Location',
+                          style: TextStyle(fontSize: 16))),
                   Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
                 ],
               ),
             ),
             const SizedBox(height: 30),
-            const Text('What do you want to move?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('What do you want to move?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
             Row(
               children: [
-                Expanded(child: _buildServiceTile(context, 'Trucks', Icons.local_shipping, Colors.blue)),
+                Expanded(
+                    child: _buildServiceTile(
+                        context, 'Trucks', Icons.local_shipping, Colors.blue)),
                 const SizedBox(width: 15),
-                Expanded(child: _buildServiceTile(context, '2 Wheeler', Icons.motorcycle, Colors.orange)),
+                Expanded(
+                    child: _buildServiceTile(
+                        context, '2 Wheeler', Icons.motorcycle, Colors.orange)),
               ],
             ),
             const SizedBox(height: 15),
             Row(
               children: [
-                Expanded(child: _buildServiceTile(context, 'Packers & Movers', Icons.inventory, Colors.purple)),
+                Expanded(
+                    child: _buildServiceTile(context, 'Packers & Movers',
+                        Icons.inventory, Colors.purple)),
                 const SizedBox(width: 15),
                 const Expanded(child: SizedBox()),
               ],
@@ -358,10 +432,14 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceTile(BuildContext context, String title, IconData icon, Color color) {
+  Widget _buildServiceTile(
+      BuildContext context, String title, IconData icon, Color color) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const PickupDropScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PickupDropScreen()),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -384,13 +462,18 @@ class HomeTab extends StatelessWidget {
 }
 
 // ================= TAB 2: ORDERS (C-17) =================
+// TODO(stage-2): Real orders list — Supabase se fetch karna hai
 class OrdersTab extends StatelessWidget {
   const OrdersTab({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Orders'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: 3,
@@ -405,25 +488,49 @@ class OrdersTab extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('2 Wheeler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('₹${100 + index * 50}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const Text('2 Wheeler',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('₹${100 + index * 50}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const Row(children: [Icon(Icons.circle, color: Colors.green, size: 12), SizedBox(width: 8), Text('Pickup Address')]),
+                  const Row(children: [
+                    Icon(Icons.circle, color: Colors.green, size: 12),
+                    SizedBox(width: 8),
+                    Text('Pickup Address')
+                  ]),
                   const SizedBox(height: 5),
-                  const Row(children: [Icon(Icons.circle, color: Colors.red, size: 12), SizedBox(width: 8), Text('Drop Address')]),
+                  const Row(children: [
+                    Icon(Icons.circle, color: Colors.red, size: 12),
+                    SizedBox(width: 8),
+                    Text('Drop Address')
+                  ]),
                   const SizedBox(height: 15),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(5)),
-                        child: const Text('COMPLETED', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(5)),
+                        child: const Text('COMPLETED',
+                            style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const PickupDropScreen()),
+                          );
+                        },
                         child: const Text('Book Again'),
                       ),
                     ],
@@ -444,49 +551,73 @@ class AccountTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final rawPhone = user?.phone ?? '';
+    // user.phone format: "+918373949014" → display "8373949014"
+    final displayPhone =
+        rawPhone.startsWith('+91') ? rawPhone.substring(3) : rawPhone;
+    // TODO(stage-2): Naam 'profiles' table se fetch karo
+    const displayName = 'Toudi User';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Account'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Account'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: ListView(
         children: [
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Column(
               children: [
-                CircleAvatar(radius: 40, child: Icon(Icons.person, size: 40)),
-                SizedBox(height: 10),
-                Text('Sumit Mathur', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text('8373949014', style: TextStyle(color: Colors.grey)),
+                const CircleAvatar(
+                    radius: 40, child: Icon(Icons.person, size: 40)),
+                const SizedBox(height: 10),
+                Text(displayName,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(displayPhone.isEmpty ? 'Not logged in' : displayPhone,
+                    style: const TextStyle(color: Colors.grey)),
               ],
             ),
           ),
           const SizedBox(height: 30),
           _buildMenuItem(context, Icons.location_on, 'Saved Addresses', () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedAddressesScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const SavedAddressesScreen()),
+            );
           }),
           _buildMenuItem(context, Icons.business, 'Business Details (GST)', () {}),
           _buildMenuItem(context, Icons.card_giftcard, 'Refer & Earn ₹200', () {}),
           _buildMenuItem(context, Icons.help, 'Help & Support', () {}),
           _buildMenuItem(context, Icons.language, 'Change Language', () {}),
           _buildMenuItem(context, Icons.description, 'Terms & Conditions', () {}),
-          _buildMenuItem(context, Icons.logout, 'Logout', () {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          _buildMenuItem(context, Icons.logout, 'Logout', () async {
+            await Supabase.instance.client.auth.signOut();
+            // Auth listener automatically LoginScreen par le jayega
           }),
         ],
       ),
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+  Widget _buildMenuItem(
+      BuildContext context, IconData icon, String title, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon, color: Colors.blue),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+      trailing:
+          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
       onTap: onTap,
     );
   }
 }
 
 // ================= C-03: SAVED ADDRESSES SCREEN =================
+// TODO(stage-2): Supabase 'saved_addresses' table se persist karo
 class SavedAddressesScreen extends StatefulWidget {
   const SavedAddressesScreen({super.key});
   @override
@@ -495,47 +626,65 @@ class SavedAddressesScreen extends StatefulWidget {
 
 class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   final List<Map<String, String>> _addresses = [
-    {'label': 'Home', 'address': 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi - 110090'},
+    {
+      'label': 'Home',
+      'address': 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi - 110090'
+    },
   ];
 
   void _addAddress() {
+    String newLabel = 'Other';
+    String newAddress = '';
     showDialog(
       context: context,
       builder: (context) {
-        String newLabel = 'Other';
-        String newAddress = '';
-        return AlertDialog(
-          title: const Text('Add New Address'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: newLabel,
-                items: ['Home', 'Shop', 'Warehouse', 'Other'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                onChanged: (val) => newLabel = val!,
-                decoration: const InputDecoration(labelText: 'Label'),
+        // FIX: StatefulBuilder so dropdown reflects selection
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add New Address'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: newLabel,
+                    items: ['Home', 'Shop', 'Warehouse', 'Other']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val == null) return;
+                      setDialogState(() => newLabel = val);
+                    },
+                    decoration: const InputDecoration(labelText: 'Label'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    decoration: const InputDecoration(labelText: 'Full Address'),
+                    onChanged: (val) => newAddress = val,
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(labelText: 'Full Address'),
-                onChanged: (val) => newAddress = val,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () {
-                if (newAddress.isNotEmpty) {
-                  setState(() {
-                    _addresses.add({'label': newLabel, 'address': newAddress});
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (newAddress.trim().isNotEmpty) {
+                      setState(() {
+                        _addresses.add({
+                          'label': newLabel,
+                          'address': newAddress.trim(),
+                        });
+                      });
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -565,25 +714,30 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
                     leading: CircleAvatar(
                       backgroundColor: Colors.blue[50],
                       child: Icon(
-                        addr['label'] == 'Home' ? Icons.home : (addr['label'] == 'Shop' ? Icons.store : Icons.location_on),
+                        addr['label'] == 'Home'
+                            ? Icons.home
+                            : (addr['label'] == 'Shop'
+                                ? Icons.store
+                                : Icons.location_on),
                         color: Colors.blue,
                       ),
                     ),
-                    title: Text(addr['label']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text(addr['label']!,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(addr['address']!),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                          onPressed: () {},
+                          icon: const Icon(Icons.edit,
+                              size: 20, color: Colors.blue),
+                          onPressed: () {
+                            // TODO(stage-2): Edit address dialog
+                          },
                         ),
                         IconButton(
-                                                   icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                          onPressed: () {},
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                          icon: const Icon(Icons.delete,
+                              size: 20, color: Colors.red),
                           onPressed: () {
                             setState(() {
                               _addresses.removeAt(index);
@@ -600,6 +754,24 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 }
 
+class BookingDraft {
+  final String pickup;
+  final String drop;
+  final String receiverName;
+  final String receiverPhone;
+  final String note;
+  final String? saveAs;
+
+  const BookingDraft({
+    required this.pickup,
+    required this.drop,
+    required this.receiverName,
+    required this.receiverPhone,
+    required this.note,
+    this.saveAs,
+  });
+}
+
 // ================= C-05 & C-06: PICKUP & DROP + RECEIVER INFO =================
 class PickupDropScreen extends StatefulWidget {
   const PickupDropScreen({super.key});
@@ -610,16 +782,32 @@ class PickupDropScreen extends StatefulWidget {
 class _PickupDropScreenState extends State<PickupDropScreen> {
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _dropController = TextEditingController();
-  final TextEditingController _receiverNameController = TextEditingController();
-  final TextEditingController _receiverPhoneController = TextEditingController();
+  final TextEditingController _receiverNameController =
+      TextEditingController();
+  final TextEditingController _receiverPhoneController =
+      TextEditingController();
   final TextEditingController _noteController = TextEditingController();
 
   String _saveAs = '';
 
   @override
+  void dispose() {
+    _pickupController.dispose();
+    _dropController.dispose();
+    _receiverNameController.dispose();
+    _receiverPhoneController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pickup & Drop'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Pickup & Drop'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -629,8 +817,10 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               controller: _pickupController,
               decoration: InputDecoration(
                 labelText: 'Pickup Address',
-                prefixIcon: const Icon(Icons.my_location, color: Colors.green),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon:
+                    const Icon(Icons.my_location, color: Colors.green),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 20),
@@ -639,18 +829,21 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               decoration: InputDecoration(
                 labelText: 'Drop Address',
                 prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 30),
-            const Text('Receiver Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Receiver Information',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
             TextField(
               controller: _receiverNameController,
               decoration: InputDecoration(
                 labelText: "Receiver's Name",
                 prefixIcon: const Icon(Icons.person),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 15),
@@ -661,7 +854,8 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               decoration: InputDecoration(
                 labelText: "Receiver's Mobile number",
                 prefixIcon: const Icon(Icons.phone),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 counterText: '',
               ),
             ),
@@ -671,11 +865,13 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
               decoration: InputDecoration(
                 labelText: "Note / Landmark (optional)",
                 prefixIcon: const Icon(Icons.note),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 30),
-            const Text('Save as (optional):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Save as (optional):',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
             Row(
               children: [
@@ -690,42 +886,57 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
             ElevatedButton(
               onPressed: () {
                 if (_pickupController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Pickup Address daalo!'), backgroundColor: Colors.red),
-                  );
+                  _showError('Pickup Address daalo!');
                   return;
                 }
                 if (_dropController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Drop Address daalo!'), backgroundColor: Colors.red),
-                  );
+                  _showError('Drop Address daalo!');
                   return;
                 }
                 if (_receiverNameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Receiver ka naam daalo!'), backgroundColor: Colors.red),
-                  );
+                  _showError('Receiver ka naam daalo!');
                   return;
                 }
-                if (_receiverPhoneController.text.trim().length != 10) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Receiver ka 10 digit mobile number daalo!'), backgroundColor: Colors.red),
-                  );
+                if (!RegExp(r'^[0-9]{10}$')
+                    .hasMatch(_receiverPhoneController.text.trim())) {
+                  _showError('Receiver ka 10 digit mobile number daalo!');
                   return;
                 }
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleSelectionScreen()));
+                final draft = BookingDraft(
+                  pickup: _pickupController.text.trim(),
+                  drop: _dropController.text.trim(),
+                  receiverName: _receiverNameController.text.trim(),
+                  receiverPhone: _receiverPhoneController.text.trim(),
+                  note: _noteController.text.trim(),
+                  saveAs: _saveAs.isEmpty ? null : _saveAs,
+                );
+                // TODO(stage-2): yahan par 'saveAs' ke hisaab se saved address persist karo
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VehicleSelectionScreen(draft: draft),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Confirm and Proceed', style: TextStyle(fontSize: 18)),
+              child: const Text('Confirm and Proceed',
+                  style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
   }
 
@@ -734,7 +945,9 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
     return ChoiceChip(
       label: Row(
         children: [
-          Icon(icon, size: 18, color: isSelected ? Colors.white : Colors.grey[700]),
+          Icon(icon,
+              size: 18,
+              color: isSelected ? Colors.white : Colors.grey[700]),
           const SizedBox(width: 5),
           Text(label),
         ],
@@ -746,14 +959,16 @@ class _PickupDropScreenState extends State<PickupDropScreen> {
         });
       },
       selectedColor: Colors.blue,
-      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
+      labelStyle:
+          TextStyle(color: isSelected ? Colors.white : Colors.black87),
     );
   }
 }
 
 // ================= C-07: VEHICLE SELECTION SCREEN =================
 class VehicleSelectionScreen extends StatefulWidget {
-  const VehicleSelectionScreen({super.key});
+  final BookingDraft draft;
+  const VehicleSelectionScreen({super.key, required this.draft});
   @override
   State<VehicleSelectionScreen> createState() => _VehicleSelectionScreenState();
 }
@@ -761,31 +976,77 @@ class VehicleSelectionScreen extends StatefulWidget {
 class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
   int selectedIndex = 0;
   final List<Map<String, String>> vehicles = [
-    {'name': '2 Wheeler', 'price': '₹372', 'icon': '🏍️', 'weight': '20 kg', 'eta': '10 mins'},
-    {'name': 'Scooter', 'price': '₹410', 'icon': '🛵', 'weight': '20 kg', 'eta': '10 mins'},
-    {'name': '3 Wheeler', 'price': '₹1501', 'icon': '🛺', 'weight': '500 kg', 'eta': '6 mins'},
-    {'name': 'Tata Ace', 'price': '₹1580', 'icon': '🚚', 'weight': '750 kg', 'eta': '7 mins'},
-    {'name': 'Pickup 8ft', 'price': '₹1894', 'icon': '🛻', 'weight': '1250 kg', 'eta': '13 mins'},
-    {'name': '10ft Truck', 'price': '₹3482', 'icon': '🚛', 'weight': '1700 kg', 'eta': '5 mins'},
+    {
+      'name': '2 Wheeler',
+      'price': '₹372',
+      'icon': '🏍️',
+      'weight': '20 kg',
+      'eta': '10 mins'
+    },
+    {
+      'name': 'Scooter',
+      'price': '₹410',
+      'icon': '🛵',
+      'weight': '20 kg',
+      'eta': '10 mins'
+    },
+    {
+      'name': '3 Wheeler',
+      'price': '₹1501',
+      'icon': '🛺',
+      'weight': '500 kg',
+      'eta': '6 mins'
+    },
+    {
+      'name': 'Tata Ace',
+      'price': '₹1580',
+      'icon': '🚚',
+      'weight': '750 kg',
+      'eta': '7 mins'
+    },
+    {
+      'name': 'Pickup 8ft',
+      'price': '₹1894',
+      'icon': '🛻',
+      'weight': '1250 kg',
+      'eta': '13 mins'
+    },
+    {
+      'name': '10ft Truck',
+      'price': '₹3482',
+      'icon': '🚛',
+      'weight': '1700 kg',
+      'eta': '5 mins'
+    },
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Vehicle'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Select Vehicle'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               itemCount: vehicles.length,
               itemBuilder: (context, index) => Card(
-                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                 color: selectedIndex == index ? Colors.blue[50] : Colors.white,
                 child: ListTile(
-                  leading: Text(vehicles[index]['icon']!, style: const TextStyle(fontSize: 30)),
-                  title: Text(vehicles[index]['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${vehicles[index]['weight']} • ${vehicles[index]['eta']}'),
-                  trailing: Text(vehicles[index]['price']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  leading: Text(vehicles[index]['icon']!,
+                      style: const TextStyle(fontSize: 30)),
+                  title: Text(vehicles[index]['name']!,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                      '${vehicles[index]['weight']} • ${vehicles[index]['eta']}'),
+                  trailing: Text(vehicles[index]['price']!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                   onTap: () => setState(() => selectedIndex = index),
                   selected: selectedIndex == index,
                 ),
@@ -802,6 +1063,7 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
                     builder: (context) => BookingReviewScreen(
                       vehicleName: vehicles[selectedIndex]['name']!,
                       vehiclePrice: vehicles[selectedIndex]['price']!,
+                      draft: widget.draft,
                     ),
                   ),
                 );
@@ -811,7 +1073,8 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
-              child: Text('Proceed with ${vehicles[selectedIndex]['name']}'),
+              child: Text(
+                  'Proceed with ${vehicles[selectedIndex]['name']}'),
             ),
           ),
         ],
@@ -821,48 +1084,124 @@ class _VehicleSelectionScreenState extends State<VehicleSelectionScreen> {
 }
 
 // ================= C-09 & C-10: BOOKING REVIEW SCREEN =================
-class BookingReviewScreen extends StatelessWidget {
+class BookingReviewScreen extends StatefulWidget {
   final String vehicleName;
   final String vehiclePrice;
-  const BookingReviewScreen({super.key, required this.vehicleName, required this.vehiclePrice});
+  final BookingDraft draft;
+  const BookingReviewScreen({
+    super.key,
+    required this.vehicleName,
+    required this.vehiclePrice,
+    required this.draft,
+  });
+
+  @override
+  State<BookingReviewScreen> createState() => _BookingReviewScreenState();
+}
+
+class _BookingReviewScreenState extends State<BookingReviewScreen> {
+  bool _isConfirming = false;
+
+  Future<void> _confirmBooking() async {
+    if (_isConfirming) return;
+    setState(() => _isConfirming = true);
+
+    try {
+      // TODO(stage-2): Yahan Supabase me booking INSERT karo:
+      // final res = await Supabase.instance.client
+      //     .from('bookings')
+      //     .insert({
+      //       'user_id': Supabase.instance.client.auth.currentUser!.id,
+      //       'pickup': widget.draft.pickup,
+      //       'drop': widget.draft.drop,
+      //       'receiver_name': widget.draft.receiverName,
+      //       'receiver_phone': widget.draft.receiverPhone,
+      //       'vehicle': widget.vehicleName,
+      //       'fare': widget.vehiclePrice,
+      //       'status': 'pending',
+      //     })
+      //     .select()
+      //     .single();
+      // final bookingId = res['id'] as String;
+
+      // Demo booking ID (Supabase wiring hone tak)
+      final bookingId = 'DEMO-${DateTime.now().millisecondsSinceEpoch}';
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentScreen(
+            amount: widget.vehiclePrice,
+            draft: widget.draft,
+            bookingId: bookingId,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Booking failed: $e'),
+            backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isConfirming = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Booking Review'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Booking Review'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSummaryRow(Icons.my_location, Colors.green, 'Pickup Address', 'A256, Mahalaxmi Enclave, New Mustafabad, Delhi'),
+            _buildSummaryRow(Icons.my_location, Colors.green, 'Pickup Address',
+                widget.draft.pickup),
             const SizedBox(height: 15),
-            _buildSummaryRow(Icons.location_on, Colors.red, 'Drop Address', 'E58, Block A, Aruna Nagar, Timarpur, Delhi'),
+            _buildSummaryRow(Icons.location_on, Colors.red, 'Drop Address',
+                widget.draft.drop),
             const Divider(height: 30),
-            _buildSummaryRow(Icons.person, Colors.blue, 'Receiver', 'Firoz Ali (8273363366)'),
+            _buildSummaryRow(
+                Icons.person,
+                Colors.blue,
+                'Receiver',
+                '${widget.draft.receiverName} (${widget.draft.receiverPhone})'),
             const Divider(height: 30),
-            _buildSummaryRow(Icons.local_shipping, Colors.orange, 'Vehicle', vehicleName),
+            _buildSummaryRow(Icons.local_shipping, Colors.orange, 'Vehicle',
+                widget.vehicleName),
             const Divider(height: 30),
-            const Text('Fare Breakdown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Estimated Fare',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 15),
-            _buildFareRow('Base Fare', '₹50'),
-            _buildFareRow('Distance Charge (5 km)', '₹100'),
-            _buildFareRow('Time Charge', '₹20'),
-            _buildFareRow('GST (5%)', '₹8'),
-            const Divider(height: 20),
-            _buildFareRow('Total', vehiclePrice, isBold: true),
+            _buildFareRow('Total (vehicle estimate)', widget.vehiclePrice,
+                isBold: true),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const PaymentScreen()));
-              },
+              onPressed: _isConfirming ? null : _confirmBooking,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Confirm Booking', style: TextStyle(fontSize: 18)),
+              child: _isConfirming
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Confirm Booking',
+                      style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -870,7 +1209,8 @@ class BookingReviewScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(IconData icon, Color color, String title, String subtitle) {
+  Widget _buildSummaryRow(
+      IconData icon, Color color, String title, String subtitle) {
     return Row(
       children: [
         Icon(icon, color: color),
@@ -879,8 +1219,11 @@ class BookingReviewScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              Text(subtitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+              Text(title,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(subtitle,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w500)),
             ],
           ),
         ),
@@ -894,8 +1237,12 @@ class BookingReviewScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text(amount, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(label,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(amount,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );
@@ -904,28 +1251,71 @@ class BookingReviewScreen extends StatelessWidget {
 
 // ================= C-11: PAYMENT SCREEN =================
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+  final String amount;
+  final BookingDraft draft;
+  final String? bookingId;
+  const PaymentScreen({
+    super.key,
+    required this.amount,
+    required this.draft,
+    this.bookingId,
+  });
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
   String _selectedPayment = 'Cash';
+  bool _isProcessing = false;
+
+  Future<void> _pay() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      // TODO(stage-2): Payment gateway / cash-on-delivery confirmation yahan
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FindingDriverScreen(
+            draft: widget.draft,
+            bookingId: widget.bookingId,
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment'), backgroundColor: Colors.blue, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Payment'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Select Payment Method', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Select Payment Method',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            _buildPaymentOption('Cash', 'Pay with cash on delivery', Icons.money),
+            _buildPaymentOption(
+                'Cash', 'Pay with cash on delivery', Icons.money),
             const SizedBox(height: 15),
-            _buildPaymentOption('UPI / Online', 'Pay via UPI, Card, Netbanking', Icons.credit_card),
+            _buildPaymentOption(
+              'UPI / Online (Coming Soon)',
+              'Online payment abhi available nahi hai',
+              Icons.credit_card,
+              enabled: false, // FIX: UPI disabled
+            ),
             const Spacer(),
             Container(
               padding: const EdgeInsets.all(15),
@@ -933,26 +1323,43 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('₹372', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+                  const Text('Total Amount',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(widget.amount,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue)),
                 ],
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const FindingDriverScreen()));
-              },
+              onPressed: _isProcessing ? null : _pay,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 55),
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text('Pay with $_selectedPayment', style: const TextStyle(fontSize: 18)),
+              child: _isProcessing
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(
+                      _selectedPayment == 'Cash'
+                          ? 'Confirm Cash on Delivery'
+                          : 'Pay with $_selectedPayment',
+                      style: const TextStyle(fontSize: 18),
+                    ),
             ),
           ],
         ),
@@ -960,32 +1367,52 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _buildPaymentOption(String title, String subtitle, IconData icon) {
-    bool isSelected = _selectedPayment == title;
+  Widget _buildPaymentOption(String title, String subtitle, IconData icon,
+      {bool enabled = true}) {
+    bool isSelected = enabled && _selectedPayment == title;
     return GestureDetector(
-      onTap: () => setState(() => _selectedPayment = title),
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue[50] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? Colors.blue : Colors.grey[300]!, width: isSelected ? 2 : 1),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: isSelected ? Colors.blue : Colors.grey[700], size: 30),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
+      onTap: enabled ? () => setState(() => _selectedPayment = title) : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.5,
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue[50] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
             ),
-            if (isSelected) const Icon(Icons.check_circle, color: Colors.blue),
-          ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon,
+                  color: isSelected ? Colors.blue : Colors.grey[700],
+                  size: 30),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              if (!enabled)
+                const Text('Coming Soon',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic))
+              else if (isSelected)
+                const Icon(Icons.check_circle, color: Colors.blue),
+            ],
+          ),
         ),
       ),
     );
@@ -994,7 +1421,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
 // ================= C-12: FINDING DRIVER SCREEN =================
 class FindingDriverScreen extends StatefulWidget {
-  const FindingDriverScreen({super.key});
+  final BookingDraft draft;
+  final String? bookingId;
+  const FindingDriverScreen({
+    super.key,
+    required this.draft,
+    this.bookingId,
+  });
   @override
   State<FindingDriverScreen> createState() => _FindingDriverScreenState();
 }
@@ -1003,48 +1436,133 @@ class _FindingDriverScreenState extends State<FindingDriverScreen> {
   @override
   void initState() {
     super.initState();
+    // DEMO ONLY: fake driver assignment.
+    // TODO(stage-2): replace with real dispatch (Supabase realtime listener)
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DriverAssignedScreen()));
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DriverAssignedScreen(
+            draft: widget.draft,
+            bookingId: widget.bookingId,
+          ),
+        ),
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 20),
-        Text('Driver Dhoondh Rahe Hain...', style: TextStyle(fontSize: 18)),
-      ])),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text('Driver Dhoondh Rahe Hain...',
+                style: TextStyle(fontSize: 18)),
+          ],
+        ),
+      ),
     );
   }
 }
 
 // ================= C-13: DRIVER ASSIGNED SCREEN =================
 class DriverAssignedScreen extends StatelessWidget {
-  const DriverAssignedScreen({super.key});
+  final BookingDraft draft;
+  final String? bookingId;
+  const DriverAssignedScreen({
+    super.key,
+    required this.draft,
+    this.bookingId,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Driver Mil Gaya!'), backgroundColor: Colors.green, foregroundColor: Colors.white),
-      body: Center(
+      appBar: AppBar(
+        title: const Text('Driver Mil Gaya!'),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const SizedBox(height: 20),
             const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
             const SizedBox(height: 20),
-            const Text('Ramesh Kumar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text('Ramesh Kumar',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const Text('Tata Ace - UP 32 AB 1234'),
+            if (bookingId != null) ...[
+              const SizedBox(height: 8),
+              Text('Order ID: $bookingId',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
             const SizedBox(height: 20),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.call), label: const Text('Call')),
-              const SizedBox(width: 20),
-              ElevatedButton.icon(onPressed: () {}, icon: const Icon(Icons.message), label: const Text('Message')),
-            ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.call),
+                    label: const Text('Call')),
+                const SizedBox(width: 20),
+                ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.message),
+                    label: const Text('Message')),
+              ],
+            ),
             const SizedBox(height: 40),
+            // Order summary
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Booking Summary',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      const Icon(Icons.circle, color: Colors.green, size: 12),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(draft.pickup)),
+                    ]),
+                    const SizedBox(height: 5),
+                    Row(children: [
+                      const Icon(Icons.circle, color: Colors.red, size: 12),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(draft.drop)),
+                    ]),
+                    const Divider(height: 20),
+                    Text('Receiver: ${draft.receiverName} '
+                        '(${draft.receiverPhone})',
+                        style: const TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-              child: const Text('Naya Order Karo'),
+              onPressed: () {
+                // Root par wapas — MainScreen. Tab state preserved.
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Naya Order Karo',
+                  style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
